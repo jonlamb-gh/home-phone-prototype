@@ -1,0 +1,8 @@
+[package]
+name = "home-phone"
+version = "0.1.0"
+authors = ["Jon Lamb"]
+edition = "2018"
+
+[dependencies]
+liblinphone-sys = { git = "https://github.com/jonlamb-gh/liblinphone-sys.git" }
