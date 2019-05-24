@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 liblinphone-sys = { git = "https://github.com/jonlamb-gh/liblinphone-sys.git" }
+phonenumber = "0.2"
