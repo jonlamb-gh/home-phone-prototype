@@ -8,3 +8,6 @@ edition = "2018"
 liblinphone-sys = { git = "https://github.com/jonlamb-gh/liblinphone-sys.git" }
 phonenumber = "0.2"
 ctrlc = "3.1"
+
+# rpi embedded-hal impl
+# https://crates.io/crates/rppal

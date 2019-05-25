@@ -30,7 +30,7 @@ impl CoreCallbacks {
 
     pub fn set_call_state_changed<F>(&mut self, f: F)
     where
-        F: Fn(Call, String),
+        F: FnMut(Call, String),
     {
         // TODO - do we loose this closure pointer on the
         // stack when this returns?

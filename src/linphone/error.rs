@@ -2,4 +2,5 @@
 pub enum Error {
     // TODO
     Linphone,
+    CallInProgress,
 }

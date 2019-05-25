@@ -1,6 +1,7 @@
 mod linphone;
+mod phone;
 
-use crate::linphone::{CallState, CoreCallbacks, CoreContext};
+use crate::linphone::{Call, CallState, CoreCallbacks, CoreContext};
 use phonenumber::{country, Mode};
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,10 +34,16 @@ fn main() {
         panic!("Invalid phone number provided\n{:#?}", number);
     }
 
-    let mut callbacks = CoreCallbacks::new().expect("Callbacks");
+    let mut active_call: Option<Call> = None;
 
+    let mut callbacks = CoreCallbacks::new().expect("Callbacks");
     callbacks.set_call_state_changed(|call, msg| {
         println!("Call state changed - State: {:?}\n  {}", call.state(), msg);
+
+        // take a ref/move on the Call?
+        // after linphone_core_accept_call()
+
+        active_call = Some(call);
     });
 
     let mut core_ctx = CoreContext::new(Some(&callbacks)).expect("Core CTX");
@@ -55,6 +62,9 @@ fn main() {
     // linphone_core_accept_call
     // linphone_core_get_duration
     // linphone_core_get_remote_address
+    // linphone_call_get_remote_address_as_string
+    // linphone_address_clean
+    // linphone_address_as_string_uri_only
 
     while running.load(Ordering::SeqCst) {
         core_ctx.iterate();
