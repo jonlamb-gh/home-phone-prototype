@@ -3,19 +3,13 @@ mod linphone;
 use crate::linphone::{CallState, CoreCallbacks, CoreContext};
 use phonenumber::{country, Mode};
 use std::env;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::{thread, time};
 
 // TODO - db file override or path management needed
 // /home/USER/.local/share/linphone/linphone.db
 // doesn't create path
-
-// console uses configs in ~/.linphonec
-//
-// https://github.com/BelledonneCommunications/linphone/blob/81688335c6415d21a58cd85f775823c8646b2297/console/example/linphonec
-
-// Add some form of config path
-// config file = ~/.linphonerc
-// zrtpsecrets = ~/.linphone-zidcache
 
 fn main() {
     let mut args = env::args().skip(1).collect::<Vec<_>>();
@@ -23,6 +17,13 @@ fn main() {
     if args.len() != 1 {
         panic!("Invalid argument");
     }
+
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+
+    ctrlc::set_handler(move || {
+        r.store(false, Ordering::SeqCst);
+    }).expect("Error setting Ctrl-C handler");
 
     let number_arg = args.pop().unwrap();
     let number = phonenumber::parse(Some(country::US), number_arg).unwrap();
@@ -32,61 +33,33 @@ fn main() {
         panic!("Invalid phone number provided\n{:#?}", number);
     }
 
-    let mut core_ctx = CoreContext::new().expect("Core CTX");
+    let mut callbacks = CoreCallbacks::new().expect("Callbacks");
 
-    // TODO - what things are needed?
-    // https://github.com/BelledonneCommunications/linphone/blob/81688335c6415d21a58cd85f775823c8646b2297/console/linphonec.c#L690
+    callbacks.set_call_state_changed(|call, msg| {
+        println!("Call state changed - State: {:?}\n  {}", call.state(), msg);
+    });
+
+    let mut core_ctx = CoreContext::new(Some(&callbacks)).expect("Core CTX");
 
     println!("Core context established");
 
-    println!("Calling {}", number.format().mode(Mode::National));
+    if core_ctx.in_call() {
+        core_ctx.terminate_all_calls().unwrap();
+    }
 
-    // TODO - check if in-call first
+    println!("Calling {}", number.format().mode(Mode::National));
 
     let call = core_ctx.invite(&number).expect("Failed to call");
 
-    let mut call_state = call.state();
-
-    println!("State: {:?}", call_state);
-
     // linphone_core_is_incoming_invite_pending
     // linphone_core_accept_call
-    // linphone_core_in_call
     // linphone_core_get_duration
     // linphone_core_get_remote_address
-    // linphone_core_terminate_all_calls
 
-    // linphone_core_cbs_set_call_state_changed
-    // fn ptr LinphoneCoreCbsCallStateChangedCb
-
-    // linphone_factory_create_core_cbs(factory)
-    let callbacks = CoreCallbacks::new();
-
-    //    callbacks.set_call_state_changed(|core, call, state, msg| {
-    //        unimplemented!();
-    //    });
-
-    // typedef void(* LinphoneCoreCbsCallStateChangedCb)
-    //   (LinphoneCore *lc, LinphoneCall *call, LinphoneCallState cstate, const
-    // char *message)
-
-    // linphone_core_add_callbacks(core, cbs)
-    // move or ref?
-    // Ctx::new(callbacks)?
-
-    // https://aatch.github.io/blog/2015/01/17/unboxed-closures-and-ffi-callbacks/
-
-    loop {
+    while running.load(Ordering::SeqCst) {
         core_ctx.iterate();
 
-        let new_state = call.state();
-
-        if new_state != call_state {
-            println!("State: {:?}", new_state);
-        }
-        call_state = new_state;
-
-        if call_state == CallState::End {
+        if call.state() == CallState::End {
             println!("Call ended normally");
             break;
         }

@@ -1,17 +1,16 @@
 use crate::linphone::{Call, Error};
 use liblinphone_sys::{
-    linphone_core_cbs_get_user_data, linphone_core_cbs_set_call_state_changed,
+    linphone_call_ref, linphone_core_cbs_get_user_data, linphone_core_cbs_set_call_state_changed,
     linphone_core_cbs_set_user_data, linphone_core_get_current_callbacks,
     linphone_factory_create_core_cbs, linphone_factory_get, LinphoneCall, LinphoneCallState,
     LinphoneCore, LinphoneCoreCbs, LinphoneFactory,
 };
+use std::ffi::CStr;
+use std::os::raw::{c_char, c_void};
 use std::ptr;
 
-// TODO
-use std::os::raw::{c_char, c_int, c_void};
-
 pub struct CoreCallbacks {
-    inner: *mut LinphoneCoreCbs,
+    pub(super) inner: *mut LinphoneCoreCbs,
 }
 
 impl CoreCallbacks {
@@ -29,29 +28,29 @@ impl CoreCallbacks {
         }
     }
 
-    // LinphoneCoreCbsCallStateChangedCb
-    // linphone_core_cbs_set_call_state_changed(cbs, Some(fn))
-    // linphone_core_cbs_get_user_data()
-    // linphone_core_cbs_set_user_data()
-    pub fn do_thing<F>(&mut self, f: F)
+    pub fn set_call_state_changed<F>(&mut self, f: F)
     where
-        F: Fn(i32, i32),
+        F: Fn(Call, String),
     {
+        // TODO - do we loose this closure pointer on the
+        // stack when this returns?
         let user_data = &f as *const _ as *mut c_void;
         unsafe {
             linphone_core_cbs_set_user_data(self.inner, user_data);
-
-            linphone_core_cbs_set_call_state_changed(self.inner, Some(do_thing_wrapper::<F>));
+            linphone_core_cbs_set_call_state_changed(
+                self.inner,
+                Some(set_call_state_changed_wrapper::<F>),
+            );
         }
 
-        // Shim interface function
-        extern "C" fn do_thing_wrapper<F>(
+        // Internal shim interface function
+        extern "C" fn set_call_state_changed_wrapper<F>(
             lc: *mut LinphoneCore,
             call: *mut LinphoneCall,
-            cstate: LinphoneCallState,
+            _cstate: LinphoneCallState,
             message: *const c_char,
         ) where
-            F: Fn(i32, i32),
+            F: FnMut(Call, String),
         {
             let closure: *mut c_void = unsafe {
                 let cbs = linphone_core_get_current_callbacks(lc);
@@ -59,10 +58,19 @@ impl CoreCallbacks {
                 linphone_core_cbs_get_user_data(cbs)
             };
 
-            let opt_closure = closure as *mut Option<F>;
-            unsafe {
-                (*opt_closure).take().unwrap()(1, 1);
-            }
+            let call = Call {
+                inner: unsafe { linphone_call_ref(call) },
+            };
+
+            let msg = unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() };
+
+            let closure: &mut F = unsafe { &mut *(closure as *mut F) };
+            (*closure)(call, msg);
+
+            //let opt_closure = closure as *mut Option<F>;
+            //unsafe {
+            //    (*opt_closure).take().unwrap()(call, msg);
+            //}
         }
     }
 }
