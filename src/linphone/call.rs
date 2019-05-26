@@ -1,3 +1,4 @@
+use crate::linphone::Error;
 use liblinphone_sys::{
     _LinphoneCallState_LinphoneCallStateConnected,
     _LinphoneCallState_LinphoneCallStateEarlyUpdatedByRemote,
@@ -14,9 +15,13 @@ use liblinphone_sys::{
     _LinphoneCallState_LinphoneCallStateReleased, _LinphoneCallState_LinphoneCallStateResuming,
     _LinphoneCallState_LinphoneCallStateStreamsRunning,
     _LinphoneCallState_LinphoneCallStateUpdatedByRemote,
-    _LinphoneCallState_LinphoneCallStateUpdating, linphone_call_get_state, linphone_call_unref,
-    LinphoneCall,
+    _LinphoneCallState_LinphoneCallStateUpdating, linphone_address_get_username,
+    linphone_call_accept, linphone_call_decline, linphone_call_get_duration,
+    linphone_call_get_remote_address, linphone_call_get_state, linphone_call_terminate,
+    linphone_call_unref, LinphoneCall,
 };
+use std::ffi::CStr;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum State {
@@ -77,6 +82,59 @@ impl Call {
             _LinphoneCallState_LinphoneCallStateEarlyUpdatedByRemote => State::EarlyUpdatedByRemote,
             _LinphoneCallState_LinphoneCallStateEarlyUpdating => State::EarlyUpdating,
             _ => State::Unknown,
+        }
+    }
+
+    pub fn duration(&self) -> Duration {
+        let dur_sec = unsafe { linphone_call_get_duration(self.inner) };
+        Duration::from_secs(dur_sec as _)
+    }
+
+    pub fn remote_address(&self) -> String {
+        unsafe {
+            let address = linphone_call_get_remote_address(self.inner);
+            let username = linphone_address_get_username(address);
+            CStr::from_ptr(username).to_string_lossy().into_owned()
+        }
+    }
+
+    pub fn accept(&mut self) -> Result<(), Error> {
+        if self.state() == State::CallIncomingReceived {
+            let ret = unsafe { linphone_call_accept(self.inner) };
+
+            if ret == 0 {
+                Ok(())
+            } else {
+                Err(Error::Linphone)
+            }
+        } else {
+            Err(Error::CallNotIncoming)
+        }
+    }
+
+    pub fn terminate(&mut self) -> Result<(), Error> {
+        let ret = unsafe { linphone_call_terminate(self.inner) };
+
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(Error::Linphone)
+        }
+    }
+
+    // TODO - reason enum, LinphoneReason
+    pub fn decline(&mut self, _reason: usize) -> Result<(), Error> {
+        if self.state() == State::CallIncomingReceived {
+            let reason_none = 0;
+            let ret = unsafe { linphone_call_decline(self.inner, reason_none) };
+
+            if ret == 0 {
+                Ok(())
+            } else {
+                Err(Error::Linphone)
+            }
+        } else {
+            Err(Error::CallNotIncoming)
         }
     }
 }

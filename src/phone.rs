@@ -14,15 +14,11 @@ impl Phone {
         self.active_call.is_some()
     }
 
-    pub fn end_call(&mut self, core: &mut CoreContext) -> Result<(), Error> {
-        if let Some(call) = self.active_call.take() {
-            core.terminate_call(call)?;
+    pub fn end_call(&mut self) -> Result<(), Error> {
+        if let Some(mut call) = self.active_call.take() {
+            call.terminate()?;
         }
-
-        // TODO - does this kill any pending incoming calls?
-        //
-        // Paranoia
-        core.terminate_all_calls()
+        Ok(())
     }
 
     // TODO - call info/duration/etc
@@ -30,11 +26,15 @@ impl Phone {
     // inspect CallState
 
     // Returns Call if already on a call or if incoming CallState is not ...
-    pub fn take_incoming_call(&mut self, call: Call) -> Result<(), Call> {
+    pub fn take_incoming_call(&mut self, mut call: Call) -> Result<(), Call> {
         if self.active_call.is_none() {
-            // TODO - linphone_core_accept_call()
-            self.active_call = Some(call);
-            Ok(())
+            let res = call.accept();
+            if res.is_ok() {
+                self.active_call = Some(call);
+                Ok(())
+            } else {
+                Err(call)
+            }
         } else {
             Err(call)
         }

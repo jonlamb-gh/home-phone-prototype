@@ -30,7 +30,7 @@ impl CoreCallbacks {
 
     pub fn set_call_state_changed<F>(&mut self, f: F)
     where
-        F: FnMut(Call, String),
+        F: FnMut(&Call, &String),
     {
         // TODO - do we loose this closure pointer on the
         // stack when this returns?
@@ -50,7 +50,7 @@ impl CoreCallbacks {
             _cstate: LinphoneCallState,
             message: *const c_char,
         ) where
-            F: FnMut(Call, String),
+            F: FnMut(&Call, &String),
         {
             let closure: *mut c_void = unsafe {
                 let cbs = linphone_core_get_current_callbacks(lc);
@@ -65,7 +65,7 @@ impl CoreCallbacks {
             let msg = unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() };
 
             let closure: &mut F = unsafe { &mut *(closure as *mut F) };
-            (*closure)(call, msg);
+            (*closure)(&call, &msg);
 
             //let opt_closure = closure as *mut Option<F>;
             //unsafe {

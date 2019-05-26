@@ -5,6 +5,7 @@ use liblinphone_sys::{
     linphone_core_set_zrtp_secrets_file, linphone_core_terminate_all_calls,
     linphone_core_terminate_call, linphone_factory_create_core, linphone_factory_create_core_cbs,
     linphone_factory_get, LinphoneCall, LinphoneCore, LinphoneCoreCbs, LinphoneFactory,
+    LinphoneStatus,
 };
 use phonenumber::{Mode, PhoneNumber};
 use std::env;
@@ -101,17 +102,6 @@ impl CoreContext {
             Ok(Call {
                 inner: unsafe { linphone_call_ref(call_ptr) },
             })
-        }
-    }
-
-    pub fn terminate_call(&mut self, call: Call) -> Result<(), Error> {
-        let ret = unsafe { linphone_core_terminate_call(self.inner, call.inner) };
-
-        // Call::drop() is invoked to unref
-        if ret == 0 {
-            Ok(())
-        } else {
-            Err(Error::Linphone)
         }
     }
 
