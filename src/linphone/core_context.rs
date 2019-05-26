@@ -1,11 +1,11 @@
 use crate::linphone::{Call, CoreCallbacks, Error};
 use liblinphone_sys::{
     linphone_call_ref, linphone_core_destroy, linphone_core_enable_logs, linphone_core_in_call,
-    linphone_core_invite, linphone_core_iterate, linphone_core_set_user_certificates_path,
-    linphone_core_set_zrtp_secrets_file, linphone_core_terminate_all_calls,
-    linphone_core_terminate_call, linphone_factory_create_core, linphone_factory_create_core_cbs,
-    linphone_factory_get, LinphoneCall, LinphoneCore, LinphoneCoreCbs, LinphoneFactory,
-    LinphoneStatus,
+    linphone_core_invite, linphone_core_is_incoming_invite_pending, linphone_core_iterate,
+    linphone_core_set_user_certificates_path, linphone_core_set_zrtp_secrets_file,
+    linphone_core_terminate_all_calls, linphone_factory_create_core,
+    linphone_factory_create_core_cbs, linphone_factory_get, LinphoneCall, LinphoneCore,
+    LinphoneCoreCbs, LinphoneFactory,
 };
 use phonenumber::{Mode, PhoneNumber};
 use std::env;
@@ -23,7 +23,7 @@ pub struct CoreContext {
 }
 
 impl CoreContext {
-    pub fn new(callbacks: Option<&CoreCallbacks>) -> Result<Self, Error> {
+    pub fn new(enable_logs: bool, callbacks: Option<&CoreCallbacks>) -> Result<Self, Error> {
         // TODO - error handling
         let home = match env::var(ENV_HOME) {
             Ok(val) => val,
@@ -33,7 +33,9 @@ impl CoreContext {
         let home_path = Path::new(&home);
 
         let inner = unsafe {
-            //linphone_core_enable_logs(ptr::null_mut());
+            if enable_logs == true {
+                linphone_core_enable_logs(ptr::null_mut());
+            }
 
             let factory: *mut LinphoneFactory = linphone_factory_get();
 
@@ -117,6 +119,11 @@ impl CoreContext {
 
     pub fn in_call(&self) -> bool {
         let ret = unsafe { linphone_core_in_call(self.inner) };
+        ret != 0
+    }
+
+    pub fn is_incoming_invite_pending(&mut self) -> bool {
+        let ret = unsafe { linphone_core_is_incoming_invite_pending(self.inner) };
         ret != 0
     }
 }

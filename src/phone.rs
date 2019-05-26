@@ -1,4 +1,4 @@
-use crate::linphone::{Call, CallState, CoreCallbacks, CoreContext, Error};
+use crate::linphone::{Call, CoreContext, Error};
 use phonenumber::PhoneNumber;
 
 pub struct Phone {
@@ -20,10 +20,6 @@ impl Phone {
         }
         Ok(())
     }
-
-    // TODO - call info/duration/etc
-    //
-    // inspect CallState
 
     // Returns Call if already on a call or if incoming CallState is not ...
     pub fn take_incoming_call(&mut self, mut call: Call) -> Result<(), Call> {

@@ -38,31 +38,20 @@ fn main() {
     callbacks.set_call_state_changed(|call, msg| {
         println!("Call state changed - State: {:?}\n  {}", call.state(), msg);
 
-        // deprecated?
-        // linphone_core_is_incoming_invite_pending
-        //
-        // linphone_call_accept
-        // linphone_call_decline
-        // linphone_call_terminate
-
-        // copy for
-        //phone.take_incoming_call(call.copy(), core)
+        //let call_c = call.clone();
     });
 
-    let mut core_ctx = CoreContext::new(Some(&callbacks)).expect("Core CTX");
+    let mut core_ctx = CoreContext::new(false, Some(&callbacks)).expect("Core CTX");
 
     println!("Core context established");
 
-    if core_ctx.in_call() {
+    if core_ctx.in_call() || core_ctx.is_incoming_invite_pending() {
         core_ctx.terminate_all_calls().unwrap();
     }
 
     println!("Calling {}", number.format().mode(Mode::National));
 
     let mut call = core_ctx.invite(&number).expect("Failed to call");
-
-    // linphone_core_is_incoming_invite_pending
-    // linphone_core_accept_call
 
     while running.load(Ordering::SeqCst) {
         core_ctx.iterate();

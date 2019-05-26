@@ -17,8 +17,8 @@ use liblinphone_sys::{
     _LinphoneCallState_LinphoneCallStateUpdatedByRemote,
     _LinphoneCallState_LinphoneCallStateUpdating, linphone_address_get_username,
     linphone_call_accept, linphone_call_decline, linphone_call_get_duration,
-    linphone_call_get_remote_address, linphone_call_get_state, linphone_call_terminate,
-    linphone_call_unref, LinphoneCall,
+    linphone_call_get_remote_address, linphone_call_get_state, linphone_call_ref,
+    linphone_call_terminate, linphone_call_unref, LinphoneCall,
 };
 use std::ffi::CStr;
 use std::time::Duration;
@@ -143,6 +143,14 @@ impl Drop for Call {
     fn drop(&mut self) {
         unsafe {
             linphone_call_unref(self.inner);
+        }
+    }
+}
+
+impl Clone for Call {
+    fn clone(&self) -> Call {
+        Call {
+            inner: unsafe { linphone_call_ref(self.inner) },
         }
     }
 }
