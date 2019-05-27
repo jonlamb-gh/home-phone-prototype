@@ -1,11 +1,8 @@
 // TODO
 // linphone_call_get_authentication_token_verified
 // other indicators
-//
-// if in a call:
-// linphone_call_send_dtmf
-// linphone_call_send_dtmfs
 
+use crate::linphone::reason::Reason;
 use crate::linphone::Error;
 use liblinphone_sys::{
     _LinphoneCallState_LinphoneCallStateConnected,
@@ -26,7 +23,7 @@ use liblinphone_sys::{
     _LinphoneCallState_LinphoneCallStateUpdating, linphone_address_get_username,
     linphone_call_accept, linphone_call_decline, linphone_call_get_duration,
     linphone_call_get_remote_address, linphone_call_get_state, linphone_call_ref,
-    linphone_call_terminate, linphone_call_unref, LinphoneCall,
+    linphone_call_send_dtmf, linphone_call_terminate, linphone_call_unref, LinphoneCall,
 };
 use std::ffi::CStr;
 use std::time::Duration;
@@ -130,11 +127,9 @@ impl Call {
         }
     }
 
-    // TODO - reason enum, LinphoneReason
-    pub fn decline(&mut self, _reason: usize) -> Result<(), Error> {
+    pub fn decline(&mut self, reason: Reason) -> Result<(), Error> {
         if self.state() == State::CallIncomingReceived {
-            let reason_none = 0;
-            let ret = unsafe { linphone_call_decline(self.inner, reason_none) };
+            let ret = unsafe { linphone_call_decline(self.inner, reason.into()) };
 
             if ret == 0 {
                 Ok(())
@@ -143,6 +138,16 @@ impl Call {
             }
         } else {
             Err(Error::CallNotIncoming)
+        }
+    }
+
+    pub fn send_dtmf(&mut self, dtmf: char) -> Result<(), Error> {
+        let ret = unsafe { linphone_call_send_dtmf(self.inner, dtmf as _) };
+
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(Error::Linphone)
         }
     }
 }

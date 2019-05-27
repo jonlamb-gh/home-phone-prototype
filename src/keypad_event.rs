@@ -2,7 +2,8 @@
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeypadEvent {
-    Key(char),
+    KeyPress(char),
+    // LongPress/etc?
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,38 +28,41 @@ impl KeypadBuffer {
         }
     }
 
-    // TODO - return bool? method for ref to data
-    // user clears()?
-    pub fn push(&mut self, mode: KeypadMode, event: KeypadEvent) -> Option<String> {
+    pub fn data(&self) -> &str {
+        &self.data
+    }
+
+    pub fn clear(&mut self) {
+        self.data.clear();
+    }
+
+    /// True if event meets criteria for the given mode
+    pub fn push(&mut self, mode: KeypadMode, event: KeypadEvent) -> bool {
         if mode != self.mode {
-            self.data.clear();
+            self.clear();
         }
 
         self.mode = mode;
 
         match self.mode {
             KeypadMode::WaitForUserDial => {
-                if let KeypadEvent::Key(c) = event {
+                if let KeypadEvent::KeyPress(c) = event {
                     if c == '#' {
-                        Some(self.data.clone())
+                        true
                     } else {
                         self.data.push(c);
-                        None
+                        false
                     }
                 } else {
-                    None
+                    false
                 }
             }
             KeypadMode::Dtmf => {
-                if let KeypadEvent::Key(c) = event {
-                    if c == '#' {
-                        Some(self.data.clone())
-                    } else {
-                        self.data.push(c);
-                        None
-                    }
+                if let KeypadEvent::KeyPress(c) = event {
+                    self.data.push(c);
+                    true
                 } else {
-                    None
+                    false
                 }
             }
         }

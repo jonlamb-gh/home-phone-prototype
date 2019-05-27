@@ -19,21 +19,6 @@ use std::{thread, time};
 //
 // - mut mic when not on a call
 
-//use phonenumber::{country, Mode};
-//let number_arg = args.pop().unwrap();
-//let number = phonenumber::parse(Some(country::US), number_arg).unwrap();
-//let valid = phonenumber::is_valid(&number);
-//if valid == false {
-//    panic!("Invalid phone number provided\n{:#?}", number);
-//}
-//println!("Calling {}", number.format().mode(Mode::National));
-//let mut call = core_ctx.invite(&number).expect("Failed to call");
-//
-// call ends normally on CallState::End
-//let duration = call.duration();
-//let address = call.remote_address();
-//call.terminate().ok();
-
 fn main() {
     // SIGINT will do a graceful shutdown
     let should_be_running = Arc::new(AtomicBool::new(true));
@@ -42,15 +27,17 @@ fn main() {
         r.store(false, Ordering::SeqCst);
     }).expect("Error setting Ctrl-C handler");
 
-    let mut keybuf = KeypadBuffer::new();
-    let mut keypad = StdinKeypad::new();
     let mut phone = Phone::new();
 
     let mut callbacks = CoreCallbacks::new().expect("Callbacks");
     callbacks.set_call_state_changed(|call, msg| {
         println!("Call state changed - State: {:?}\n  {}", call.state(), msg);
 
-        //let call_c = call.clone();
+        if call.state() == CallState::CallIncomingReceived {
+            if let Err(declined_call) = phone.handle_incoming_call(call.clone()) {
+                println!("Declined call");
+            }
+        }
     });
 
     let mut core_ctx = CoreContext::new(false, Some(&callbacks)).expect("Core CTX");
@@ -66,19 +53,8 @@ fn main() {
     // ok if valid, default to display address
 
     while should_be_running.load(Ordering::SeqCst) {
-        // TODO - buffer the keys when not in a call,
-        // fill a number until '#'
-        //
-        // when on a call, each key is treated as a dtmf key
-        // to be sent on the call
-        // '*' to hangup?
-        if let Some(event) = keypad.next_event() {
-            println!("{:?}", event);
-
-            if let Some(string) = keybuf.push(KeypadMode::WaitForUserDial, event) {
-                println!("  -> {:?}", string);
-            }
-        }
+        // TODO - handle errors
+        phone.handle_events(&mut core_ctx).ok();
 
         core_ctx.iterate();
 
