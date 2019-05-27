@@ -1,3 +1,11 @@
+// TODO
+// linphone_call_get_authentication_token_verified
+// other indicators
+//
+// if in a call:
+// linphone_call_send_dtmf
+// linphone_call_send_dtmfs
+
 use crate::linphone::Error;
 use liblinphone_sys::{
     _LinphoneCallState_LinphoneCallStateConnected,
