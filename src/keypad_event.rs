@@ -4,6 +4,8 @@
 pub enum KeypadEvent {
     KeyPress(char),
     // LongPress/etc?
+    #[doc(hidden)]
+    _Extensible,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

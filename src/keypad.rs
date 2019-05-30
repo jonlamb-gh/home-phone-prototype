@@ -36,7 +36,7 @@ fn spawn_stdin_channel() -> Receiver<KeypadEvent> {
     let (tx, rx) = mpsc::channel::<KeypadEvent>();
     thread::spawn(move || loop {
         let mut buffer = String::new();
-        let stdin = io::stdin().read_line(&mut buffer).unwrap();
+        let _stdin = io::stdin().read_line(&mut buffer).unwrap();
         if let Some(c) = sanitize_key(buffer.chars().next().unwrap()) {
             tx.send(KeypadEvent::KeyPress(c)).unwrap();
         }

@@ -1,18 +1,20 @@
 use crate::keypad::{Keypad, StdinKeypad};
 use crate::keypad_event::{KeypadBuffer, KeypadEvent, KeypadMode};
-use crate::linphone::{Call, CoreContext, Error};
-use phonenumber::{country, Mode, PhoneNumber};
+use crate::linphone::{Call, CallState, CoreContext, Error, Reason};
+use phonenumber::{country, Mode};
+use std::time::{Duration, Instant};
+
+const NO_ANSWER_DURATION: Duration = Duration::from_secs(10);
 
 pub struct Phone {
     keypad: StdinKeypad,
     keybuf: KeypadBuffer,
-    //call: Option<Call>,
     state: State,
 }
 
 pub enum State {
     WaitingForEvents,
-    HandlePendingCall(Call),
+    HandlePendingCall(Call, Instant),
     OnGoingCall(Call),
 }
 
@@ -25,6 +27,26 @@ impl Phone {
         }
     }
 
+    pub fn state(&self) -> &State {
+        &self.state
+    }
+
+    pub fn recover_from_error(&mut self) {
+        match &mut self.state {
+            State::HandlePendingCall(pending_call, _registration_instant) => {
+                pending_call.terminate().ok();
+            }
+            State::OnGoingCall(call) => {
+                call.terminate().ok();
+            }
+            _ => (),
+        }
+
+        self.state = State::WaitingForEvents;
+        self.keybuf.clear();
+    }
+
+    // TODO - clean this up, move to session type indexed by state?
     pub fn handle_events(&mut self, core: &mut CoreContext) -> Result<(), Error> {
         match &mut self.state {
             State::WaitingForEvents => {
@@ -32,6 +54,7 @@ impl Phone {
                     self.keybuf.push(KeypadMode::WaitForUserDial, event)
                 }) {
                     if let Ok(number) = phonenumber::parse(Some(country::US), self.keybuf.data()) {
+                        self.keybuf.clear();
                         if phonenumber::is_valid(&number) {
                             println!("Calling {}", number.format().mode(Mode::National));
                             let call = core.invite(&number)?;
@@ -40,23 +63,42 @@ impl Phone {
                             println!("Ignoring invalid phone number");
                         }
                     }
-                    self.keybuf.clear();
                 }
             }
-            State::HandlePendingCall(pending_call) => {
-                // TODO
-                unimplemented!()
+            State::HandlePendingCall(pending_call, registration_instant) => {
+                // Check for no-response timeout first
+                let now = Instant::now();
+                if now.duration_since(*registration_instant) > NO_ANSWER_DURATION {
+                    println!("Auto-declining call");
+                    self.keybuf.clear();
+                    pending_call.decline(Reason::NotAnswered)?;
+                    self.state = State::WaitingForEvents;
+                } else if let Some(event) = self.keypad.next_event() {
+                    // Check for accept/decline keys
+                    if event == KeypadEvent::KeyPress('#') {
+                        println!("Accepting call");
+                        self.keybuf.clear();
+                        pending_call.accept()?;
+                        self.state = State::OnGoingCall(pending_call.clone());
+                    } else if event == KeypadEvent::KeyPress('*') {
+                        println!("Declining call");
+                        self.keybuf.clear();
+                        pending_call.decline(Reason::NotAnswered)?;
+                        self.state = State::WaitingForEvents;
+                    }
+                }
             }
             State::OnGoingCall(call) => {
                 if let Some(event) = self.keypad.next_event() {
-                    // Buffer the DTMF for display purposes
-                    let _ = self.keybuf.push(KeypadMode::Dtmf, event);
-
                     if event == KeypadEvent::KeyPress('*') {
                         println!("Terminating active call");
+                        self.keybuf.clear();
                         call.terminate()?;
                         self.state = State::WaitingForEvents;
                     } else if let KeypadEvent::KeyPress(c) = event {
+                        // Buffer the DTMF for display purposes
+                        let _ = self.keybuf.push(KeypadMode::Dtmf, event);
+
                         println!("Sending '{}' as DTMF", c);
                         call.send_dtmf(c)?;
                     }
@@ -67,9 +109,24 @@ impl Phone {
         Ok(())
     }
 
-    // Expects state == CallIncomingReceived ?
-    // call is decline if failed
-    pub fn handle_incoming_call(&mut self, mut call: Call) -> Result<(), Call> {
-        unimplemented!()
+    // TODO - make this better
+    pub fn handle_incoming_call(&mut self, mut call: Call) -> Result<(), Error> {
+        if call.state() == CallState::CallIncomingReceived {
+            match &self.state {
+                State::WaitingForEvents => {
+                    // Consume the pending call
+                    self.state = State::HandlePendingCall(call, Instant::now());
+                    Ok(())
+                }
+                _ => {
+                    println!("Declining pending call");
+                    call.decline(Reason::NotAnswered)?;
+                    Err(Error::CallInProgress)
+                }
+            }
+        } else {
+            // Do nothing, drop the object
+            Ok(())
+        }
     }
 }
