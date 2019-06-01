@@ -1,11 +1,12 @@
 use crate::linphone::{Call, CoreCallbacks, Error};
 use liblinphone_sys::{
-    linphone_call_ref, linphone_core_destroy, linphone_core_enable_logs, linphone_core_in_call,
+    linphone_call_ref, linphone_core_clear_call_logs, linphone_core_destroy,
+    linphone_core_enable_logs, linphone_core_get_missed_calls_count, linphone_core_in_call,
     linphone_core_invite, linphone_core_is_incoming_invite_pending, linphone_core_iterate,
-    linphone_core_set_user_certificates_path, linphone_core_set_zrtp_secrets_file,
-    linphone_core_terminate_all_calls, linphone_factory_create_core,
-    linphone_factory_create_core_cbs, linphone_factory_get, LinphoneCall, LinphoneCore,
-    LinphoneCoreCbs, LinphoneFactory,
+    linphone_core_reset_missed_calls_count, linphone_core_set_user_certificates_path,
+    linphone_core_set_zrtp_secrets_file, linphone_core_terminate_all_calls,
+    linphone_factory_create_core, linphone_factory_create_core_cbs, linphone_factory_get,
+    LinphoneCall, LinphoneCore, LinphoneCoreCbs, LinphoneFactory,
 };
 use phonenumber::{Mode, PhoneNumber};
 use std::env;
@@ -125,6 +126,29 @@ impl CoreContext {
     pub fn is_incoming_invite_pending(&mut self) -> bool {
         let ret = unsafe { linphone_core_is_incoming_invite_pending(self.inner) };
         ret != 0
+    }
+
+    pub fn missed_calls_count(&mut self, reset_count: bool) -> Result<usize, Error> {
+        let ret = unsafe { linphone_core_get_missed_calls_count(self.inner) };
+
+        if ret >= 0 {
+            if reset_count == true {
+                unsafe {
+                    linphone_core_reset_missed_calls_count(self.inner);
+                }
+            }
+
+            Ok(ret as usize)
+        } else {
+            Err(Error::Linphone)
+        }
+    }
+
+    pub fn clear_call_logs(&mut self) -> Result<(), Error> {
+        unsafe {
+            linphone_core_clear_call_logs(self.inner);
+        }
+        Ok(())
     }
 }
 

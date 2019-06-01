@@ -1,8 +1,10 @@
+mod display_data;
 mod keypad;
 mod keypad_event;
 mod linphone;
 mod phone;
 
+use crate::display_data::DisplayData;
 use crate::linphone::{CallState, CoreCallbacks, CoreContext, Error};
 use crate::phone::Phone;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -36,6 +38,11 @@ use std::{thread, time};
 // linphone_core_get_call_logs
 // linphone_core_get_last_outgoing_call_log
 // linphone_core_clear_call_logs
+//
+// - do something with call log?
+// linphone_call_log_get_call_id
+// linphone_call_log_get_duration
+// linphone_call_log_get_remote_address
 //
 // - dtmf sounds to the user?
 // linphone_core_play_dtmf
@@ -77,6 +84,8 @@ fn main() {
     // Call.remote_address().as_number() -> Result<PhoneNumber>
     // ok if valid, default to display address
 
+    let mut display_data = DisplayData::new();
+
     while should_be_running.load(Ordering::SeqCst) {
         // TODO - handle errors
         // terminate all calls and reset phone?
@@ -87,6 +96,13 @@ fn main() {
 
         core_ctx.iterate();
 
+        display_data.update(&phone);
+
+        //println!("{}", display_data);
+
+        // TODO - wake/sleep
         thread::sleep(time::Duration::from_millis(50));
     }
+
+    println!("{}", display_data);
 }

@@ -31,6 +31,10 @@ impl Phone {
         &self.state
     }
 
+    pub fn keypad_buffer(&self) -> &KeypadBuffer {
+        &self.keybuf
+    }
+
     pub fn recover_from_error(&mut self) {
         match &mut self.state {
             State::HandlePendingCall(pending_call, _registration_instant) => {

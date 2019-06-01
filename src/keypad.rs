@@ -37,9 +37,11 @@ fn spawn_stdin_channel() -> Receiver<KeypadEvent> {
     thread::spawn(move || loop {
         let mut buffer = String::new();
         let _stdin = io::stdin().read_line(&mut buffer).unwrap();
-        if let Some(c) = sanitize_key(buffer.chars().next().unwrap()) {
-            tx.send(KeypadEvent::KeyPress(c)).unwrap();
-        }
+
+        buffer
+            .chars()
+            .filter(|c| sanitize_key(*c).is_some())
+            .for_each(|c| tx.send(KeypadEvent::KeyPress(c)).unwrap());
     });
     rx
 }
