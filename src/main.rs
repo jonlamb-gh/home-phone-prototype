@@ -80,10 +80,6 @@ fn main() {
         core_ctx.terminate_all_calls().unwrap();
     }
 
-    // TODO
-    // Call.remote_address().as_number() -> Result<PhoneNumber>
-    // ok if valid, default to display address
-
     let mut display_data = DisplayData::new();
 
     while should_be_running.load(Ordering::SeqCst) {

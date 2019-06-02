@@ -1,7 +1,7 @@
 use crate::keypad::{Keypad, StdinKeypad};
 use crate::keypad_event::{KeypadBuffer, KeypadEvent, KeypadMode};
 use crate::linphone::{Call, CallState, CoreContext, Error, Reason};
-use phonenumber::{country, Mode};
+use phonenumber::{country, Mode, PhoneNumber};
 use std::time::{Duration, Instant};
 
 const NO_ANSWER_DURATION: Duration = Duration::from_secs(10);
@@ -48,6 +48,26 @@ impl Phone {
 
         self.state = State::WaitingForEvents;
         self.keybuf.clear();
+    }
+
+    // TODO - make this better
+    pub fn remote_address(&self) -> Option<PhoneNumber> {
+        match &self.state {
+            State::HandlePendingCall(call, _) | State::OnGoingCall(call) => {
+                if let Ok(number) =
+                    phonenumber::parse(Some(country::US), call.remote_address().clone())
+                {
+                    if phonenumber::is_valid(&number) {
+                        Some(number)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     // TODO - clean this up, move to session type indexed by state?

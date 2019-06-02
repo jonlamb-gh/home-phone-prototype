@@ -2,7 +2,7 @@
 
 use chrono::prelude::*;
 use crate::phone::{Phone, State as PhoneState};
-use phonenumber::{country, Mode};
+use phonenumber::Mode;
 use std::fmt;
 use std::time::{Duration, Instant};
 
@@ -55,26 +55,30 @@ impl DisplayData {
                     phone.keypad_buffer().data().to_string(),
                 );
             }
-            PhoneState::HandlePendingCall(pending_call, registration_instant) => (),
+            PhoneState::HandlePendingCall(pending_call, _registration_instant) => {
+                let remote_address = if let Some(number) = phone.remote_address() {
+                    number.format().mode(Mode::National).to_string()
+                } else {
+                    pending_call.remote_address()
+                };
+
+                self.set_row(
+                    Row::Zero,
+                    Alignment::Center,
+                    "'*' Ans | Decl '#'".to_string(),
+                );
+                self.set_row(Row::Two, Alignment::Left, remote_address);
+            }
             PhoneState::OnGoingCall(call) => {
-                let remote_address = call.remote_address();
                 let duration = call.duration();
 
-                // TODO - move this to a fn(&Call)
-                // remote_address().as_number() -> Result<PhoneNumber> ?
-                if let Ok(number) = phonenumber::parse(Some(country::US), remote_address.clone()) {
-                    if phonenumber::is_valid(&number) {
-                        self.set_row(
-                            Row::Zero,
-                            Alignment::Left,
-                            number.format().mode(Mode::National).to_string(),
-                        );
-                    } else {
-                        self.set_row(Row::Zero, Alignment::Left, remote_address);
-                    }
+                let remote_address = if let Some(number) = phone.remote_address() {
+                    number.format().mode(Mode::National).to_string()
                 } else {
-                    self.set_row(Row::Zero, Alignment::Left, remote_address);
-                }
+                    call.remote_address()
+                };
+
+                self.set_row(Row::Zero, Alignment::Left, remote_address);
 
                 self.set_row(
                     Row::One,
