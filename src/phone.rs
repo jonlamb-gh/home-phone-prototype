@@ -27,6 +27,14 @@ impl Phone {
         }
     }
 
+    /// True if in state WaitingForEvents and Keypad::is_idle() == true
+    pub fn is_idle(&self) -> bool {
+        match &self.state {
+            State::WaitingForEvents => self.keypad.is_idle(),
+            _ => false,
+        }
+    }
+
     pub fn state(&self) -> &State {
         &self.state
     }

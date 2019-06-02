@@ -5,6 +5,7 @@ use crate::phone::{Phone, State as PhoneState};
 use phonenumber::Mode;
 use std::fmt;
 use std::time::{Duration, Instant};
+//use crate::linphone::CoreContext;
 
 const ROWS: usize = 4;
 const COLS: usize = 20;
@@ -36,6 +37,7 @@ impl DisplayData {
     }
 
     // TODO - clean this up
+    // needs CoreContext for missed call logs
     pub fn update(&mut self, phone: &Phone) {
         self.clear();
 
@@ -49,11 +51,20 @@ impl DisplayData {
                 //
                 // otherwise show number/keys being pressed?
 
-                self.set_row(
-                    Row::Zero,
-                    Alignment::Left,
-                    phone.keypad_buffer().data().to_string(),
-                );
+                if phone.is_idle() == true {
+                    self.set_row(
+                        Row::Zero,
+                        Alignment::Center,
+                        "'*' Next | Clear '#'".to_string(),
+                    );
+                    self.set_row(Row::One, Alignment::Left, "XYZ Missed Calls".to_string());
+                } else {
+                    self.set_row(
+                        Row::Zero,
+                        Alignment::Left,
+                        phone.keypad_buffer().data().to_string(),
+                    );
+                }
             }
             PhoneState::HandlePendingCall(pending_call, _registration_instant) => {
                 let remote_address = if let Some(number) = phone.remote_address() {

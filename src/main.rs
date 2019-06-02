@@ -70,6 +70,8 @@ fn main() {
                 }
             }
         }
+
+        // TODO - update display
     });
 
     let mut core_ctx = CoreContext::new(false, Some(&callbacks)).expect("Core CTX");
@@ -95,6 +97,8 @@ fn main() {
         display_data.update(&phone);
 
         //println!("{}", display_data);
+
+        // TODO - update display
 
         // TODO - wake/sleep
         thread::sleep(time::Duration::from_millis(50));
