@@ -12,3 +12,8 @@ chrono = "0.4"
 
 # rpi embedded-hal impl
 # https://crates.io/crates/rppal
+
+# https://github.com/rust-embedded/gpio-cdev/issues/13
+# https://github.com/nix-rust/nix/issues/1057
+#[patch.crates-io]
+#nix = { git = "https://github.com/nix-rust/nix/", rev = "196b05b5c7b" }

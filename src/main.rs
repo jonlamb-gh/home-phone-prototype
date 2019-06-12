@@ -11,6 +11,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::{thread, time};
 
+//
+// https://github.com/Ogeon/rust-on-raspberry-pi/
+//
+
 // TODO - db file override or path management needed
 // /home/USER/.local/share/linphone/linphone.db
 // doesn't create path
@@ -46,6 +50,9 @@ use std::{thread, time};
 //
 // - dtmf sounds to the user?
 // linphone_core_play_dtmf
+
+// deprecated:
+// linphone_core_enable_logs
 
 fn main() {
     // SIGINT will do a graceful shutdown

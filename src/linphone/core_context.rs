@@ -35,6 +35,7 @@ impl CoreContext {
 
         let inner = unsafe {
             if enable_logs == true {
+                // TODO - deprecated
                 linphone_core_enable_logs(ptr::null_mut());
             }
 
