@@ -1,9 +1,14 @@
+mod display;
 mod display_data;
 mod keypad;
 mod keypad_event;
 mod linphone;
 mod phone;
 
+#[macro_use]
+extern crate keypad as keypad_builder;
+
+use crate::display::Display;
 use crate::display_data::DisplayData;
 use crate::linphone::{CallState, CoreCallbacks, CoreContext, Error};
 use crate::phone::Phone;
@@ -62,6 +67,11 @@ fn main() {
         r.store(false, Ordering::SeqCst);
     }).expect("Error setting Ctrl-C handler");
 
+    let mut display_data = DisplayData::new();
+    let mut display = Display::new().unwrap();
+
+    // TODO - startup display, clear
+
     let mut phone = Phone::new();
 
     let mut callbacks = CoreCallbacks::new().expect("Callbacks");
@@ -78,7 +88,9 @@ fn main() {
             }
         }
 
-        // TODO - update display
+        display_data.update(&phone);
+
+        display.display(&display_data).unwrap();
     });
 
     let mut core_ctx = CoreContext::new(false, Some(&callbacks)).expect("Core CTX");
@@ -88,8 +100,6 @@ fn main() {
         println!("Terminating pending calls before initializing");
         core_ctx.terminate_all_calls().unwrap();
     }
-
-    let mut display_data = DisplayData::new();
 
     while should_be_running.load(Ordering::SeqCst) {
         // TODO - handle errors
@@ -103,12 +113,17 @@ fn main() {
 
         display_data.update(&phone);
 
-        //println!("{}", display_data);
-
-        // TODO - update display
+        // TODO - only redraw when needed?
+        display.display(&display_data).unwrap();
 
         // TODO - wake/sleep
-        thread::sleep(time::Duration::from_millis(50));
+        // use keypad gpio interrupts
+        //
+        if phone.is_idle() == true {
+            thread::sleep(time::Duration::from_millis(50));
+        } else {
+            thread::sleep(time::Duration::from_millis(10));
+        }
     }
 
     println!("{}", display_data);

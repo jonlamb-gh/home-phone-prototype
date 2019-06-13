@@ -4,14 +4,14 @@ use chrono::prelude::*;
 use crate::phone::{Phone, State as PhoneState};
 use phonenumber::Mode;
 use std::fmt;
-use std::time::{Duration, Instant};
+//use std::time::{Duration, Instant};
 //use crate::linphone::CoreContext;
 
 const ROWS: usize = 4;
 const COLS: usize = 20;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Row {
+pub enum Row {
     Zero = 0,
     One = 1,
     Two = 2,
@@ -34,6 +34,10 @@ impl DisplayData {
         DisplayData {
             rows: vec![String::with_capacity(COLS + 1); ROWS],
         }
+    }
+
+    pub fn row(&self, row: Row) -> &str {
+        &self.rows[row as usize]
     }
 
     // TODO - clean this up

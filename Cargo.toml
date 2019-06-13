@@ -9,9 +9,12 @@ liblinphone-sys = { git = "https://github.com/jonlamb-gh/liblinphone-sys.git" }
 phonenumber = "0.2"
 ctrlc = "3.1"
 chrono = "0.4"
+keypad = "0.1.4"
+embedded-hal = { version = "0.2.2", features = ["unproven"] }
 
-# rpi embedded-hal impl
-# https://crates.io/crates/rppal
+[dependencies.rppal]
+version = "0.11.2"
+features = ["hal", "hal-unproven"]
 
 # https://github.com/rust-embedded/gpio-cdev/issues/13
 # https://github.com/nix-rust/nix/issues/1057

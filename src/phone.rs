@@ -1,4 +1,4 @@
-use crate::keypad::{Keypad, StdinKeypad};
+use crate::keypad::Keypad;
 use crate::keypad_event::{KeypadBuffer, KeypadEvent, KeypadMode};
 use crate::linphone::{Call, CallState, CoreContext, Error, Reason};
 use phonenumber::{country, Mode, PhoneNumber};
@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 const NO_ANSWER_DURATION: Duration = Duration::from_secs(10);
 
 pub struct Phone {
-    keypad: StdinKeypad,
+    keypad: Keypad,
     keybuf: KeypadBuffer,
     state: State,
 }
@@ -21,7 +21,7 @@ pub enum State {
 impl Phone {
     pub fn new() -> Self {
         Phone {
-            keypad: StdinKeypad::new(),
+            keypad: Keypad::new(),
             keybuf: KeypadBuffer::new(),
             state: State::WaitingForEvents,
         }
@@ -30,6 +30,7 @@ impl Phone {
     /// True if in state WaitingForEvents and Keypad::is_idle() == true
     pub fn is_idle(&self) -> bool {
         match &self.state {
+            // TODO - not idle if keybuf has data?
             State::WaitingForEvents => self.keypad.is_idle(),
             _ => false,
         }

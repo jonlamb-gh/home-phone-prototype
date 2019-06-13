@@ -3,9 +3,15 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeypadEvent {
     KeyPress(char),
-    // LongPress/etc?
-    #[doc(hidden)]
-    _Extensible,
+    LongPress(char),
+}
+
+impl KeypadEvent {
+    pub fn inner(&self) -> char {
+        match *self {
+            KeypadEvent::KeyPress(c) | KeypadEvent::LongPress(c) => c,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
