@@ -20,6 +20,12 @@ pub enum State {
 
 impl Phone {
     pub fn new() -> Self {
+        let test_number = "123-456-1234";
+        println!("Loading phonenumber cache");
+        if let Ok(number) = phonenumber::parse(Some(country::US), test_number) {
+            let _valid = phonenumber::is_valid(&number);
+        }
+
         Phone {
             keypad: Keypad::new(),
             keybuf: KeypadBuffer::new(),
@@ -31,7 +37,13 @@ impl Phone {
     pub fn is_idle(&self) -> bool {
         match &self.state {
             // TODO - not idle if keybuf has data?
-            State::WaitingForEvents => self.keypad.is_idle(),
+            State::WaitingForEvents => {
+                if self.keybuf.len() == 0 {
+                    self.keypad.is_idle()
+                } else {
+                    false
+                }
+            }
             _ => false,
         }
     }
@@ -80,13 +92,28 @@ impl Phone {
     }
 
     // TODO - clean this up, move to session type indexed by state?
-    pub fn handle_events(&mut self, core: &mut CoreContext) -> Result<(), Error> {
+    // return bool, true for some state change
+    //
+    // TODO - update display before calling/inviting?
+    pub fn handle_events(&mut self, core: &mut CoreContext) -> Result<bool, Error> {
+        let mut state_changed: bool = false;
+
         match &mut self.state {
             State::WaitingForEvents => {
                 if self.keypad.next_event().map_or(false, |event| {
-                    self.keybuf.push(KeypadMode::WaitForUserDial, event)
+                    state_changed = true;
+                    //println!("push key {:?}", event);
+                    if event == KeypadEvent::LongPress('0') {
+                        self.keybuf.clear();
+                        false
+                    } else {
+                        self.keybuf.push(KeypadMode::WaitForUserDial, event)
+                    }
                 }) {
+                    println!("Checking '{}'", self.keybuf.data());
+
                     if let Ok(number) = phonenumber::parse(Some(country::US), self.keybuf.data()) {
+                        state_changed = true;
                         self.keybuf.clear();
                         if phonenumber::is_valid(&number) {
                             println!("Calling {}", number.format().mode(Mode::National));
@@ -106,7 +133,10 @@ impl Phone {
                     self.keybuf.clear();
                     pending_call.decline(Reason::NotAnswered)?;
                     self.state = State::WaitingForEvents;
+                    state_changed = true;
                 } else if let Some(event) = self.keypad.next_event() {
+                    state_changed = true;
+
                     // Check for accept/decline keys
                     if event == KeypadEvent::KeyPress('#') {
                         println!("Accepting call");
@@ -122,7 +152,11 @@ impl Phone {
                 }
             }
             State::OnGoingCall(call) => {
+                // TODO - detect remote hangup in state changed handler
+
                 if let Some(event) = self.keypad.next_event() {
+                    state_changed = true;
+
                     if event == KeypadEvent::KeyPress('*') {
                         println!("Terminating active call");
                         self.keybuf.clear();
@@ -139,11 +173,25 @@ impl Phone {
             }
         }
 
+        Ok(state_changed)
+    }
+
+    // TODO - cmp for Call, this just assumes its ours
+    pub fn handle_call_state_changed(&mut self, call: &Call) -> Result<(), Error> {
+        match call.state() {
+            CallState::CallIncomingReceived => self.handle_incoming_call(call.clone())?,
+            CallState::Error | CallState::Released => {
+                println!("Terminating");
+                self.recover_from_error();
+            }
+            _ => (),
+        }
+
         Ok(())
     }
 
     // TODO - make this better
-    pub fn handle_incoming_call(&mut self, mut call: Call) -> Result<(), Error> {
+    fn handle_incoming_call(&mut self, mut call: Call) -> Result<(), Error> {
         if call.state() == CallState::CallIncomingReceived {
             match &self.state {
                 State::WaitingForEvents => {

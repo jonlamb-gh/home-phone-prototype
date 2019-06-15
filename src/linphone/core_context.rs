@@ -1,8 +1,8 @@
 use crate::linphone::{Call, CoreCallbacks, Error};
 use liblinphone_sys::{
     linphone_call_ref, linphone_core_clear_call_logs, linphone_core_destroy,
-    linphone_core_enable_logs, linphone_core_get_missed_calls_count, linphone_core_in_call,
-    linphone_core_invite, linphone_core_is_incoming_invite_pending, linphone_core_iterate,
+    linphone_core_get_missed_calls_count, linphone_core_in_call, linphone_core_invite,
+    linphone_core_is_incoming_invite_pending, linphone_core_iterate,
     linphone_core_reset_missed_calls_count, linphone_core_set_user_certificates_path,
     linphone_core_set_zrtp_secrets_file, linphone_core_terminate_all_calls,
     linphone_factory_create_core, linphone_factory_create_core_cbs, linphone_factory_get,
@@ -20,11 +20,11 @@ const USR_CERTS_PATH: &'static str = ".linphone-usr-crt\0";
 const ZRTP_SEC_FILE: &'static str = ".linphone-zidcache\0";
 
 pub struct CoreContext {
-    inner: *mut LinphoneCore,
+    pub(super) inner: *mut LinphoneCore,
 }
 
 impl CoreContext {
-    pub fn new(enable_logs: bool, callbacks: Option<&CoreCallbacks>) -> Result<Self, Error> {
+    pub fn new(callbacks: Option<&CoreCallbacks>) -> Result<Self, Error> {
         // TODO - error handling
         let home = match env::var(ENV_HOME) {
             Ok(val) => val,
@@ -34,11 +34,6 @@ impl CoreContext {
         let home_path = Path::new(&home);
 
         let inner = unsafe {
-            if enable_logs == true {
-                // TODO - deprecated
-                linphone_core_enable_logs(ptr::null_mut());
-            }
-
             let factory: *mut LinphoneFactory = linphone_factory_get();
 
             let callback_ptr: *mut LinphoneCoreCbs = if let Some(cb) = callbacks {

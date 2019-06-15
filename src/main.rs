@@ -8,13 +8,14 @@ mod phone;
 #[macro_use]
 extern crate keypad as keypad_builder;
 
-use crate::display::Display;
+use crate::display::{Display, Row};
 use crate::display_data::DisplayData;
-use crate::linphone::{CallState, CoreCallbacks, CoreContext, Error};
+use crate::linphone::{CoreCallbacks, CoreContext, Error};
 use crate::phone::Phone;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::{thread, time};
+use std::thread;
+use std::time::{Duration, Instant};
 
 //
 // https://github.com/Ogeon/rust-on-raspberry-pi/
@@ -56,8 +57,15 @@ use std::{thread, time};
 // - dtmf sounds to the user?
 // linphone_core_play_dtmf
 
-// deprecated:
-// linphone_core_enable_logs
+// some errors
+//2019-06-13 22:42:05:833 liblinphone-error-Could not resolv
+// /home/pi/.linphone.ecstate: No such file or directory
+//
+//2019-06-13 22:42:06:098 mediastreamer-warning-MSAudio MSTicker: We are late
+// of 1584 miliseconds. Call state changed - State: Error
+//  Busy Here
+//Call state changed - State: Released
+//  Call released
 
 fn main() {
     // SIGINT will do a graceful shutdown
@@ -71,29 +79,33 @@ fn main() {
     let mut display = Display::new().unwrap();
 
     // TODO - startup display, clear
+    display.display(&display_data).unwrap();
+    display.set_row(Row::R0, "Loading phonebook").unwrap();
 
     let mut phone = Phone::new();
+    display.display(&display_data).unwrap();
 
+    // TODO - add core context ref
     let mut callbacks = CoreCallbacks::new().expect("Callbacks");
     callbacks.set_call_state_changed(|call, msg| {
         println!("Call state changed - State: {:?}\n  {}", call.state(), msg);
 
         // TODO - handle errors
         // terminate all calls and reset phone?
-        if call.state() == CallState::CallIncomingReceived {
-            if let Err(e) = phone.handle_incoming_call(call.clone()) {
-                if e != Error::CallInProgress {
-                    phone.recover_from_error();
-                }
+        if let Err(e) = phone.handle_call_state_changed(call) {
+            if e != Error::CallInProgress {
+                phone.recover_from_error();
             }
         }
 
-        display_data.update(&phone);
+        // TODO - need to handle phone state
+
+        display_data.update(None, &phone);
 
         display.display(&display_data).unwrap();
     });
 
-    let mut core_ctx = CoreContext::new(false, Some(&callbacks)).expect("Core CTX");
+    let mut core_ctx = CoreContext::new(Some(&callbacks)).expect("Core CTX");
 
     // Drop any pending/existing calls on startup
     if core_ctx.in_call() || core_ctx.is_incoming_invite_pending() {
@@ -101,28 +113,53 @@ fn main() {
         core_ctx.terminate_all_calls().unwrap();
     }
 
+    display_data.update(None, &phone);
+    display.display(&display_data).unwrap();
+
+    let mut last_update = Instant::now();
+    let mut last_redraw = Instant::now();
+
     while should_be_running.load(Ordering::SeqCst) {
         // TODO - handle errors
         // terminate all calls and reset phone?
-        if let Err(_e) = phone.handle_events(&mut core_ctx) {
-            phone.recover_from_error();
-            core_ctx.terminate_all_calls().unwrap();
+
+        let mut should_redraw: bool = false;
+
+        match phone.handle_events(&mut core_ctx) {
+            Err(_e) => {
+                phone.recover_from_error();
+                core_ctx.terminate_all_calls().unwrap();
+                should_redraw = true;
+            }
+            Ok(state_changed) => should_redraw |= state_changed,
         }
 
-        core_ctx.iterate();
-
-        display_data.update(&phone);
+        // NOTE: example polling was 50 ms
+        if Instant::now().duration_since(last_update) >= Duration::from_millis(50) {
+            core_ctx.iterate();
+            last_update = Instant::now();
+        }
 
         // TODO - only redraw when needed?
-        display.display(&display_data).unwrap();
+        // on phone state change
+        // or once a second to update the clock/date display
+        // use keypad gpio interrupts?
+        //
+        if Instant::now().duration_since(last_redraw) >= Duration::from_secs(1)
+            || (should_redraw == true)
+        {
+            //println!("redraw");
+            let missed_calls = core_ctx.missed_calls_count(false).unwrap_or(0);
+            display_data.update(Some(missed_calls), &phone);
+            display.display(&display_data).unwrap();
+            last_redraw = Instant::now();
+        }
 
         // TODO - wake/sleep
-        // use keypad gpio interrupts
-        //
         if phone.is_idle() == true {
-            thread::sleep(time::Duration::from_millis(50));
+            thread::sleep(Duration::from_millis(20));
         } else {
-            thread::sleep(time::Duration::from_millis(10));
+            thread::sleep(Duration::from_millis(5));
         }
     }
 

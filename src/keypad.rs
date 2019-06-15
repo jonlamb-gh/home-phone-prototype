@@ -2,7 +2,7 @@
 
 use crate::keypad_event::KeypadEvent;
 use keypad_builder::embedded_hal::digital::InputPin as HALInputPin;
-//use keypad_builder::KeypadInput;
+use keypad_builder::KeypadInput;
 use rppal::gpio::{Gpio, InputPin, OutputPin};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -46,7 +46,7 @@ const IDLE_TIMEOUT: Duration = Duration::from_secs(5);
 
 const LONGPRESS_DURATION: Duration = Duration::from_secs(2);
 
-const PREKEY_WAIT: Duration = Duration::from_millis(800);
+const PREKEY_WAIT: Duration = Duration::from_millis(500);
 
 const DEBOUNCE_DURATION: Duration = Duration::from_millis(5);
 
@@ -82,8 +82,7 @@ impl Keypad {
     }
 
     pub fn is_idle(&self) -> bool {
-        let now = Instant::now();
-        now.duration_since(self.last_activity) > IDLE_TIMEOUT
+        Instant::now().duration_since(self.last_activity) > IDLE_TIMEOUT
     }
 
     // TODO - make this better
@@ -113,30 +112,34 @@ impl Keypad {
 
         for (row_index, row) in keys.iter().enumerate() {
             for (col_index, key) in row.iter().enumerate() {
-                if key.is_low() {
-                    thread::sleep(DEBOUNCE_DURATION);
-                } else {
-                    continue;
-                }
+                if Self::debounce_is_low(key) == true {
+                    let t_start = Instant::now();
 
-                if key.is_low() {
                     let c = CHAR_MAP[row_index][col_index];
 
                     // Wait for release or long-press duration
                     let event = loop {
-                        if Instant::now().duration_since(self.last_activity) >= LONGPRESS_DURATION {
+                        if Instant::now().duration_since(t_start) >= LONGPRESS_DURATION {
                             break KeypadEvent::LongPress(c);
-                        } else if key.is_low() == false {
+                        } else if Self::debounce_is_low(key) == false {
                             break KeypadEvent::KeyPress(c);
                         }
                     };
 
-                    thread::sleep(DEBOUNCE_DURATION);
                     return Some(event);
                 }
             }
         }
 
         None
+    }
+
+    fn debounce_is_low<'k>(key: &KeypadInput<'k>) -> bool {
+        if key.is_low() == true {
+            thread::sleep(DEBOUNCE_DURATION);
+            key.is_low()
+        } else {
+            false
+        }
     }
 }

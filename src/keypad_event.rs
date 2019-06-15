@@ -44,6 +44,10 @@ impl KeypadBuffer {
         self.data.clear();
     }
 
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
     /// True if event meets criteria for the given mode
     pub fn push(&mut self, mode: KeypadMode, event: KeypadEvent) -> bool {
         if mode != self.mode {

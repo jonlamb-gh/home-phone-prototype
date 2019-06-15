@@ -1,6 +1,7 @@
 //! 4x20 character display data
 
 use chrono::prelude::*;
+use crate::linphone::CallState;
 use crate::phone::{Phone, State as PhoneState};
 use phonenumber::Mode;
 use std::fmt;
@@ -42,7 +43,7 @@ impl DisplayData {
 
     // TODO - clean this up
     // needs CoreContext for missed call logs
-    pub fn update(&mut self, phone: &Phone) {
+    pub fn update(&mut self, missed_calls: Option<usize>, phone: &Phone) {
         self.clear();
 
         self.update_system_time();
@@ -61,7 +62,12 @@ impl DisplayData {
                         Alignment::Center,
                         "'*' Next | Clear '#'".to_string(),
                     );
-                    self.set_row(Row::One, Alignment::Left, "XYZ Missed Calls".to_string());
+
+                    self.set_row(
+                        Row::One,
+                        Alignment::Center,
+                        format!("{} Missed Calls", missed_calls.unwrap_or(0)),
+                    );
                 } else {
                     self.set_row(
                         Row::Zero,
@@ -95,11 +101,31 @@ impl DisplayData {
 
                 self.set_row(Row::Zero, Alignment::Left, remote_address);
 
-                self.set_row(
-                    Row::One,
-                    Alignment::Left,
-                    String::from(format!("Duration: {} sec", duration.as_secs())),
-                );
+                match call.state() {
+                    CallState::OutgoingInit
+                    | CallState::OutgoingProgress
+                    | CallState::OutgoingRinging
+                    | CallState::OutgoingEarlyMedia => {
+                        self.set_row(Row::One, Alignment::Left, String::from("Calling..."));
+                    }
+                    CallState::Connected | CallState::StreamsRunning => {
+                        self.set_row(
+                            Row::One,
+                            Alignment::Center,
+                            String::from(format!("Duration: {} sec", duration.as_secs())),
+                        );
+                    }
+                    CallState::End => {
+                        self.set_row(Row::One, Alignment::Center, String::from("Call Ended"));
+                    }
+                    state => {
+                        self.set_row(
+                            Row::One,
+                            Alignment::Left,
+                            String::from(format!("{:?}", state)),
+                        );
+                    }
+                }
             }
         }
     }
