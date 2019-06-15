@@ -86,9 +86,10 @@ impl DisplayData {
                 self.set_row(
                     Row::Zero,
                     Alignment::Center,
-                    "'*' Ans | Decl '#'".to_string(),
+                    "'*' Decl | Ans '#'".to_string(),
                 );
-                self.set_row(Row::Two, Alignment::Left, remote_address);
+                self.set_row(Row::One, Alignment::Center, "Incoming Call".to_string());
+                self.set_row(Row::Two, Alignment::Center, remote_address);
             }
             PhoneState::OnGoingCall(call) => {
                 let duration = call.duration();
@@ -99,14 +100,14 @@ impl DisplayData {
                     call.remote_address()
                 };
 
-                self.set_row(Row::Zero, Alignment::Left, remote_address);
+                self.set_row(Row::Zero, Alignment::Center, remote_address);
 
                 match call.state() {
                     CallState::OutgoingInit
                     | CallState::OutgoingProgress
                     | CallState::OutgoingRinging
                     | CallState::OutgoingEarlyMedia => {
-                        self.set_row(Row::One, Alignment::Left, String::from("Calling..."));
+                        self.set_row(Row::One, Alignment::Center, String::from("Calling..."));
                     }
                     CallState::Connected | CallState::StreamsRunning => {
                         self.set_row(

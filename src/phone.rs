@@ -4,8 +4,6 @@ use crate::linphone::{Call, CallState, CoreContext, Error, Reason};
 use phonenumber::{country, Mode, PhoneNumber};
 use std::time::{Duration, Instant};
 
-const NO_ANSWER_DURATION: Duration = Duration::from_secs(10);
-
 pub struct Phone {
     keypad: Keypad,
     keybuf: KeypadBuffer,
@@ -93,8 +91,6 @@ impl Phone {
 
     // TODO - clean this up, move to session type indexed by state?
     // return bool, true for some state change
-    //
-    // TODO - update display before calling/inviting?
     pub fn handle_events(&mut self, core: &mut CoreContext) -> Result<bool, Error> {
         let mut state_changed: bool = false;
 
@@ -125,25 +121,17 @@ impl Phone {
                     }
                 }
             }
-            State::HandlePendingCall(pending_call, registration_instant) => {
-                // Check for no-response timeout first
-                let now = Instant::now();
-                if now.duration_since(*registration_instant) > NO_ANSWER_DURATION {
-                    println!("Auto-declining call");
-                    self.keybuf.clear();
-                    pending_call.decline(Reason::NotAnswered)?;
-                    self.state = State::WaitingForEvents;
-                    state_changed = true;
-                } else if let Some(event) = self.keypad.next_event() {
+            State::HandlePendingCall(pending_call, _registration_instant) => {
+                if let Some(event) = self.keypad.next_event() {
                     state_changed = true;
 
                     // Check for accept/decline keys
-                    if event == KeypadEvent::KeyPress('#') {
+                    if event == KeypadEvent::LongPress('#') {
                         println!("Accepting call");
                         self.keybuf.clear();
                         pending_call.accept()?;
                         self.state = State::OnGoingCall(pending_call.clone());
-                    } else if event == KeypadEvent::KeyPress('*') {
+                    } else if event == KeypadEvent::LongPress('*') {
                         println!("Declining call");
                         self.keybuf.clear();
                         pending_call.decline(Reason::NotAnswered)?;
@@ -157,7 +145,7 @@ impl Phone {
                 if let Some(event) = self.keypad.next_event() {
                     state_changed = true;
 
-                    if event == KeypadEvent::KeyPress('*') {
+                    if event == KeypadEvent::LongPress('*') {
                         println!("Terminating active call");
                         self.keybuf.clear();
                         call.terminate()?;

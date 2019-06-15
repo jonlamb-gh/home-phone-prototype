@@ -17,19 +17,15 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-//
-// https://github.com/Ogeon/rust-on-raspberry-pi/
-//
-
 // TODO - db file override or path management needed
 // /home/USER/.local/share/linphone/linphone.db
 // doesn't create path
 
-// check out keypad
-// https://github.com/e-matteson/keypad
+// TLS and SRTP
+// https://stackoverflow.com/questions/41462750/ssl-client-certificate-verification-on-linphone
 //
-// with
-// https://github.com/golemparts/rppal
+// make a deb
+// https://lib.rs/crates/cargo-deb
 
 // TODO
 // - a top level Error
@@ -60,12 +56,6 @@ use std::time::{Duration, Instant};
 // some errors
 //2019-06-13 22:42:05:833 liblinphone-error-Could not resolv
 // /home/pi/.linphone.ecstate: No such file or directory
-//
-//2019-06-13 22:42:06:098 mediastreamer-warning-MSAudio MSTicker: We are late
-// of 1584 miliseconds. Call state changed - State: Error
-//  Busy Here
-//Call state changed - State: Released
-//  Call released
 
 fn main() {
     // SIGINT will do a graceful shutdown

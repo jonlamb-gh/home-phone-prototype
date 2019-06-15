@@ -57,18 +57,13 @@ impl KeypadBuffer {
         self.mode = mode;
 
         match self.mode {
-            KeypadMode::WaitForUserDial => {
-                if let KeypadEvent::KeyPress(c) = event {
-                    if c == '#' {
-                        true
-                    } else {
-                        self.data.push(c);
-                        false
-                    }
-                } else {
+            KeypadMode::WaitForUserDial => match event {
+                KeypadEvent::KeyPress(c) => {
+                    self.data.push(c);
                     false
                 }
-            }
+                KeypadEvent::LongPress(c) => c == '#',
+            },
             KeypadMode::Dtmf => {
                 if let KeypadEvent::KeyPress(c) = event {
                     self.data.push(c);
