@@ -3,7 +3,7 @@
 use chrono::prelude::*;
 use crate::linphone::CallState;
 use crate::phone::{Phone, State as PhoneState};
-use phonenumber::Mode;
+use phonenumber::{country, Mode};
 use std::fmt;
 //use std::time::{Duration, Instant};
 //use crate::linphone::CoreContext;
@@ -76,12 +76,12 @@ impl DisplayData {
                     );
                 }
             }
-            PhoneState::HandlePendingCall(pending_call, _registration_instant) => {
-                let remote_address = if let Some(number) = phone.remote_address() {
-                    number.format().mode(Mode::National).to_string()
-                } else {
-                    pending_call.remote_address()
-                };
+            PhoneState::HandlePendingCall(pending_call) => {
+                // TODO - remote address is showing ours?
+                // linphone_call_get_dir()
+                // this is a from_address
+                //let remote_address = pending_call.to_address();
+                let remote_address = Self::number_string(pending_call.remote_address());
 
                 self.set_row(
                     Row::Zero,
@@ -93,12 +93,7 @@ impl DisplayData {
             }
             PhoneState::OnGoingCall(call) => {
                 let duration = call.duration();
-
-                let remote_address = if let Some(number) = phone.remote_address() {
-                    number.format().mode(Mode::National).to_string()
-                } else {
-                    call.remote_address()
-                };
+                let remote_address = Self::number_string(call.remote_address());
 
                 self.set_row(Row::Zero, Alignment::Center, remote_address);
 
@@ -161,6 +156,16 @@ impl DisplayData {
             Alignment::Center => format!("{: ^20}", truncated_string),
             Alignment::Right => format!("{: >20}", truncated_string),
         };
+    }
+
+    fn number_string(number: String) -> String {
+        if let Ok(num) = phonenumber::parse(Some(country::US), &number) {
+            if phonenumber::is_valid(&num) {
+                return num.format().mode(Mode::National).to_string();
+            }
+        }
+
+        number
     }
 }
 

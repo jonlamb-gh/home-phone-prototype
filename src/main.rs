@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 // TLS and SRTP
 // https://stackoverflow.com/questions/41462750/ssl-client-certificate-verification-on-linphone
 //
-// make a deb
+// make a deb with systemd scripts
 // https://lib.rs/crates/cargo-deb
 
 // TODO
@@ -52,10 +52,29 @@ use std::time::{Duration, Instant};
 //
 // - dtmf sounds to the user?
 // linphone_core_play_dtmf
+//
+// linphone_core_is_network_reachable
 
 // some errors
 //2019-06-13 22:42:05:833 liblinphone-error-Could not resolv
 // /home/pi/.linphone.ecstate: No such file or directory
+
+// CoreCallbacks::new()
+//   - closure { phone.handle_call_state_changed(call) }
+//
+// Phone::new(CoreContext)
+//
+// Phone::iterate()
+//   - 20 ms
+//   - CoreContext::iterate()
+//
+// Phone::handle_events()
+//   - each iter
+//   - check for keypad input
+//   - output display data
+//
+// Phone::handle_call_state_changed(Call)
+//   - same as ^^?
 
 fn main() {
     // SIGINT will do a graceful shutdown
@@ -68,17 +87,16 @@ fn main() {
     let mut display_data = DisplayData::new();
     let mut display = Display::new().unwrap();
 
-    // TODO - startup display, clear
     display.display(&display_data).unwrap();
     display.set_row(Row::R0, "Loading phonebook").unwrap();
 
     let mut phone = Phone::new();
     display.display(&display_data).unwrap();
 
-    // TODO - add core context ref
+    // TODO - add core context ref or user param
     let mut callbacks = CoreCallbacks::new().expect("Callbacks");
     callbacks.set_call_state_changed(|call, msg| {
-        println!("Call state changed - State: {:?}\n  {}", call.state(), msg);
+        println!("Call state changed - State: {:?} - {}", call.state(), msg);
 
         // TODO - handle errors
         // terminate all calls and reset phone?
@@ -95,13 +113,9 @@ fn main() {
         display.display(&display_data).unwrap();
     });
 
-    let mut core_ctx = CoreContext::new(Some(&callbacks)).expect("Core CTX");
+    let core_ctx = CoreContext::new(Some(&callbacks)).expect("Core CTX");
 
-    // Drop any pending/existing calls on startup
-    if core_ctx.in_call() || core_ctx.is_incoming_invite_pending() {
-        println!("Terminating pending calls before initializing");
-        core_ctx.terminate_all_calls().unwrap();
-    }
+    phone.set_core(core_ctx);
 
     display_data.update(None, &phone);
     display.display(&display_data).unwrap();
@@ -115,10 +129,9 @@ fn main() {
 
         let mut should_redraw: bool = false;
 
-        match phone.handle_events(&mut core_ctx) {
+        match phone.handle_events() {
             Err(_e) => {
                 phone.recover_from_error();
-                core_ctx.terminate_all_calls().unwrap();
                 should_redraw = true;
             }
             Ok(state_changed) => should_redraw |= state_changed,
@@ -126,7 +139,7 @@ fn main() {
 
         // NOTE: example polling was 50 ms
         if Instant::now().duration_since(last_update) >= Duration::from_millis(50) {
-            core_ctx.iterate();
+            phone.iterate();
             last_update = Instant::now();
         }
 
@@ -138,8 +151,10 @@ fn main() {
         if Instant::now().duration_since(last_redraw) >= Duration::from_secs(1)
             || (should_redraw == true)
         {
+            // TODO
             //println!("redraw");
-            let missed_calls = core_ctx.missed_calls_count(false).unwrap_or(0);
+            //let missed_calls = core_ctx.missed_calls_count(false).unwrap_or(0);
+            let missed_calls = 0;
             display_data.update(Some(missed_calls), &phone);
             display.display(&display_data).unwrap();
             last_redraw = Instant::now();
@@ -147,7 +162,7 @@ fn main() {
 
         // TODO - wake/sleep
         if phone.is_idle() == true {
-            thread::sleep(Duration::from_millis(20));
+            thread::sleep(Duration::from_millis(15));
         } else {
             thread::sleep(Duration::from_millis(5));
         }
